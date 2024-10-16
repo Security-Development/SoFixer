@@ -12,7 +12,7 @@
 #endif
 
 
-const char* short_options = "hdm:s:o:b:";
+const char* short_options = "hdm:s:o:b:a:";
 const struct option long_options[] = {
         {"help", 0, NULL, 'h'},
         {"debug", 0, NULL, 'd'},
@@ -20,9 +20,27 @@ const struct option long_options[] = {
         {"source", 1, NULL, 's'},
         {"baseso", 1, NULL, 'b'},
         {"output", 1, NULL, 'o'},
+        {"align", 1, NULL, 'a'},
         {nullptr, 0, nullptr, 0}
 };
 void useage();
+
+auto is16Bit = [](const char* c) {
+    auto len = strlen(c);
+    if(len > 2) {
+        if(c[0] == '0' & c[1] == 'x') return true;
+    }
+    bool is10bit = true;
+    for(auto i = 0; i < len; i++) {
+        if((c[i] > 'a' && c[i] < 'f') ||
+            (c[i] > 'A' && c[i] < 'F')) {
+            is10bit = false;
+        }
+    }
+    return !is10bit;
+};
+
+                
 
 
 bool main_loop(int argc, char* argv[]) {
@@ -31,6 +49,7 @@ bool main_loop(int argc, char* argv[]) {
     ObElfReader elf_reader;
 
     std::string source, output, baseso;
+    size_t page_size = -1;
     while((c = getopt_long(argc, argv, short_options, long_options, nullptr)) != -1) {
         switch (c) {
             case 'd':
@@ -45,29 +64,24 @@ bool main_loop(int argc, char* argv[]) {
             case 'b':
                 baseso = optarg;
                 break;
-            case 'm': {
-                auto is16Bit = [](const char* c) {
-                    auto len = strlen(c);
-                    if(len > 2) {
-                        if(c[0] == '0' & c[1] == 'x') return true;
-                    }
-                    bool is10bit = true;
-                    for(auto i = 0; i < len; i++) {
-                        if((c[i] > 'a' && c[i] < 'f') ||
-                           (c[i] > 'A' && c[i] < 'F')) {
-                            is10bit = false;
-                        }
-                    }
-                    return !is10bit;
-                };
-#ifndef __SO64__
-                auto base = strtoul(optarg, 0, is16Bit(optarg) ? 16: 10);
-#else
-                auto base = strtoull(optarg, 0, is16Bit(optarg) ? 16: 10);
-#endif
-                elf_reader.setDumpSoBaseAddr(base);
-            }
+            case 'a': {
+                    #ifndef __SO64__
+                        page_size = strtoul(optarg, 0, is16Bit(optarg) ? 16: 10);
+                    #else
+                        page_size = strtoull(optarg, 0, is16Bit(optarg) ? 16: 10);
+                    #endif
+                }
                 break;
+            case 'm': {
+                    #ifndef __SO64__
+                        auto base = strtoul(optarg, 0, is16Bit(optarg) ? 16: 10);
+                    #else
+                        auto base = strtoull(optarg, 0, is16Bit(optarg) ? 16: 10);
+                    #endif
+                        elf_reader.setDumpSoBaseAddr(base);
+                }
+                break;
+
             default:
                 return false;
         }
@@ -93,13 +107,18 @@ bool main_loop(int argc, char* argv[]) {
         elf_reader.setBaseSoName(baseso.c_str());
     }
 
-    if(!elf_reader.Load()) {
+    if (page_size == -1) {
+        FLOGE("page size value is not found");
+        return false;
+    }
+
+    if(!elf_reader.Load(page_size)) {
         FLOGE("source so file is invalid");
         return false;
     }
 
     ElfRebuilder elf_rebuilder(&elf_reader);
-    if(!elf_rebuilder.Rebuild()) {
+    if(!elf_rebuilder.Rebuild(page_size)) {
         FLOGE("error occured in rebuilding elf file");
         return false;
     }
@@ -139,4 +158,5 @@ void useage() {
     FLOGI("  -b --baseso baseFilePath                   Original so file path.(used to get base information)(experimental)");
     FLOGI("  -o --output generateFilePath               Generate file path");
     FLOGI("  -h --help                                  Display this information");
+    FLOGI("  -a --align                                 Set the page size for alignment");
 }

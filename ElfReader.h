@@ -26,7 +26,7 @@ public:
     ElfReader();
     virtual ~ElfReader();
 
-    virtual bool Load();
+    virtual bool Load(size_t page_size);
     bool setSource(const char* source);
 
     size_t phdr_count() { return phdr_num_; }
@@ -41,7 +41,7 @@ protected:
     bool ReadElfHeader();
     bool VerifyElfHeader();
     bool ReadProgramHeader();
-    bool ReserveAddressSpace(uint32_t padding_size = 0);
+    bool ReserveAddressSpace(size_t page_size, uint32_t padding_size = 0);
     bool LoadSegments();
     bool FindPhdr();
     bool CheckPhdr(uint8_t *);
@@ -85,6 +85,7 @@ private:
 size_t
 phdr_table_get_load_size(const Elf_Phdr* phdr_table,
                          size_t phdr_count,
+                         size_t page_size,
                          Elf_Addr* min_vaddr = NULL,
                          Elf_Addr* max_vaddr = NULL);
 

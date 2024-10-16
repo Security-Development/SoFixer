@@ -48,7 +48,7 @@ void ObElfReader::FixDumpSoPhdr() {
     }
 }
 
-bool ObElfReader::Load() {
+bool ObElfReader::Load(size_t page_size) {
     // try open
     if (!ReadElfHeader() || !VerifyElfHeader() || !ReadProgramHeader())
         return false;
@@ -56,7 +56,7 @@ bool ObElfReader::Load() {
 
     bool has_base_dynamic_info = false;
     uint32_t base_dynamic_size = 0;
-    if (!haveDynamicSectionInLoadableSegment()) {
+    if (!haveDynamicSectionInLoadableSegment(page_size)) {
         // try to get dynamic information from base so file.
         // TODO fix bug in dynamic section rebuild.
         LoadDynamicSectionFromBaseSource();
@@ -69,7 +69,7 @@ bool ObElfReader::Load() {
               "argument baseso will be ignored.");
     }
 
-    if (!ReserveAddressSpace(base_dynamic_size) ||
+    if (!ReserveAddressSpace(page_size, base_dynamic_size) ||
         !LoadSegments() ||
         !FindPhdr()) {
         return false;
@@ -162,9 +162,9 @@ void ObElfReader::ApplyDynamicSection() {
     }
 }
 
-bool ObElfReader::haveDynamicSectionInLoadableSegment() {
+bool ObElfReader::haveDynamicSectionInLoadableSegment(size_t page_size) {
     Elf_Addr min_vaddr, max_vaddr;
-    phdr_table_get_load_size(phdr_table_, phdr_num_, &min_vaddr, &max_vaddr);
+    phdr_table_get_load_size(phdr_table_, phdr_num_, page_size, &min_vaddr, &max_vaddr);
 
     const Elf_Phdr* phdr = phdr_table_;
     const Elf_Phdr* phdr_limit = phdr + phdr_num_;

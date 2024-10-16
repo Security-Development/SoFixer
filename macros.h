@@ -35,19 +35,19 @@ typedef Elf64_Dyn Elf_Dyn;
 typedef Elf64_Word Elf_Word;
 #endif
 
-#ifndef PAGE_SIZE
-#define PAGE_SIZE 0x1000
+// #ifndef PAGE_SIZE
+// #define PAGE_SIZE 0x1000
 
-#define PAGE_MASK (~(PAGE_SIZE-1))
+#define PAGE_MASK(page_size) (~(page_size-1))
 // Returns the address of the page containing address 'x'.
-#define PAGE_START(x)  ((x) & PAGE_MASK)
+#define PAGE_START(x, page_size)  ((x) & PAGE_MASK(page_size))
 
 // Returns the offset of address 'x' in its page.
-#define PAGE_OFFSET(x) ((x) & ~PAGE_MASK)
+#define PAGE_OFFSET(x, page_size) ((x) & ~PAGE_MASK(page_size))
 
 // Returns the address of the next page after address 'x', unless 'x' is
 // itself at the start of a page.
-#define PAGE_END(x)    PAGE_START((x) + (PAGE_SIZE-1))
+#define PAGE_END(x, page_size)    PAGE_START((x) + (page_size-1), page_size)
 #endif
 
 #ifndef TEMP_FAILURE_RETRY
@@ -60,4 +60,4 @@ typedef Elf64_Word Elf_Word;
 #endif
 
 
-#endif //FAOATDUMP_EXELF_H
+//#endif //FAOATDUMP_EXELF_H

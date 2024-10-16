@@ -117,13 +117,13 @@ ElfReader::~ElfReader() {
     }
 }
 
-bool ElfReader::Load() {
+bool ElfReader::Load(size_t page_size) {
     // try open
     return ReadElfHeader() &&
            VerifyElfHeader() &&
            ReadProgramHeader() &&
            // TODO READ dynamic from SECTION header (>= __ANDROID_API_O__)
-           ReserveAddressSpace() &&
+           ReserveAddressSpace(page_size) &&
            LoadSegments() &&
            FindPhdr();
 }
@@ -212,6 +212,7 @@ bool ElfReader::ReadProgramHeader() {
  */
 size_t phdr_table_get_load_size(const Elf_Phdr* phdr_table,
                                 size_t phdr_count,
+                                size_t page_size,
                                 Elf_Addr* out_min_vaddr,
                                 Elf_Addr* out_max_vaddr)
 {
@@ -243,8 +244,8 @@ size_t phdr_table_get_load_size(const Elf_Phdr* phdr_table,
         min_vaddr = 0x00000000U;
     }
 
-    min_vaddr = PAGE_START(min_vaddr);
-    max_vaddr = PAGE_END(max_vaddr);
+    min_vaddr = PAGE_START(min_vaddr, page_size);
+    max_vaddr = PAGE_END(max_vaddr, page_size);
 
     if (out_min_vaddr != NULL) {
         *out_min_vaddr = min_vaddr;
@@ -258,9 +259,9 @@ size_t phdr_table_get_load_size(const Elf_Phdr* phdr_table,
 // Reserve a virtual address range big enough to hold all loadable
 // segments of a program header table. This is done by creating a
 // private anonymous mmap() with PROT_NONE.
-bool ElfReader::ReserveAddressSpace(uint32_t padding_size) {
+bool ElfReader::ReserveAddressSpace(size_t page_size, uint32_t padding_size) {
     Elf_Addr min_vaddr;
-    load_size_ = phdr_table_get_load_size(phdr_table_, phdr_num_, &min_vaddr);
+    load_size_ = phdr_table_get_load_size(phdr_table_, phdr_num_, page_size, &min_vaddr);
     if (load_size_ == 0) {
         FLOGE("\"%s\" has no loadable segments", name_);
         return false;
@@ -325,7 +326,7 @@ bool ElfReader::LoadSegments() {
         // if the segment is writable, and does not end on a page boundary,
         // zero-fill it until the page limit.
 //        if ((phdr->p_flags & PF_W) != 0 && PAGE_OFFSET(seg_file_end) > 0) {
-//            memset(seg_file_end + reinterpret_cast<uint8_t *>(load_bias_), 0, PAGE_SIZE - PAGE_OFFSET(seg_file_end));
+//            memset(seg_file_end + reinterpret_cast<uint8_t *>(load_bias_), 0, page_size - PAGE_OFFSET(seg_file_end));
 //        }
 
 //        seg_file_end = PAGE_END(seg_file_end);
@@ -351,7 +352,8 @@ static int
 _phdr_table_set_load_prot(const Elf_Phdr* phdr_table,
                           int               phdr_count,
                           uint8_t *load_bias,
-                          int               extra_prot_flags)
+                          int               extra_prot_flags,
+                          size_t page_size)
 {
     const Elf_Phdr* phdr = phdr_table;
     const Elf_Phdr* phdr_limit = phdr + phdr_count;
@@ -360,8 +362,8 @@ _phdr_table_set_load_prot(const Elf_Phdr* phdr_table,
         if (phdr->p_type != PT_LOAD || (phdr->p_flags & PF_W) != 0)
             continue;
 
-        auto seg_page_start = PAGE_START(phdr->p_vaddr) + load_bias;
-        auto seg_page_end   = PAGE_END(phdr->p_vaddr + phdr->p_memsz) + load_bias;
+        auto seg_page_start = PAGE_START(phdr->p_vaddr, page_size) + load_bias;
+        auto seg_page_end   = PAGE_END(phdr->p_vaddr + phdr->p_memsz, page_size) + load_bias;
 
         auto ret = 0;
 
@@ -389,10 +391,11 @@ _phdr_table_set_load_prot(const Elf_Phdr* phdr_table,
 int
 phdr_table_protect_segments(const Elf_Phdr* phdr_table,
                             int               phdr_count,
-                            uint8_t *load_bias)
+                            uint8_t *load_bias,
+                            size_t page_size)
 {
     return _phdr_table_set_load_prot(phdr_table, phdr_count,
-                                     load_bias, 0);
+                                     load_bias, 0, page_size);
 }
 
 /* Change the protection of all loaded segments in memory to writable.
@@ -414,10 +417,11 @@ phdr_table_protect_segments(const Elf_Phdr* phdr_table,
 int
 phdr_table_unprotect_segments(const Elf_Phdr* phdr_table,
                               int               phdr_count,
-                              uint8_t *load_bias)
+                              uint8_t *load_bias,
+                              size_t page_size)
 {
     return _phdr_table_set_load_prot(phdr_table, phdr_count,
-                                     load_bias, /*PROT_WRITE*/0);
+                                     load_bias, /*PROT_WRITE*/0, page_size);
 }
 
 /* Used internally by phdr_table_protect_gnu_relro and
@@ -427,7 +431,8 @@ static int
 _phdr_table_set_gnu_relro_prot(const Elf_Phdr* phdr_table,
                                int               phdr_count,
                                uint8_t *load_bias,
-                               int               prot_flags)
+                               int               prot_flags,
+                               size_t page_size)
 {
     const Elf_Phdr* phdr = phdr_table;
     const Elf_Phdr* phdr_limit = phdr + phdr_count;
@@ -453,8 +458,8 @@ _phdr_table_set_gnu_relro_prot(const Elf_Phdr* phdr_table,
          *    linker must only emit a PT_GNU_RELRO segment if it ensures
          *    that it starts on a page boundary.
          */
-        auto seg_page_start = PAGE_START(phdr->p_vaddr) + load_bias;
-        auto seg_page_end   = PAGE_END(phdr->p_vaddr + phdr->p_memsz) + load_bias;
+        auto seg_page_start = PAGE_START(phdr->p_vaddr, page_size) + load_bias;
+        auto seg_page_end   = PAGE_END(phdr->p_vaddr + phdr->p_memsz, page_size) + load_bias;
 
         auto ret = 0;
 //        int ret = mprotect((void*)seg_page_start,
@@ -486,12 +491,13 @@ _phdr_table_set_gnu_relro_prot(const Elf_Phdr* phdr_table,
 int
 phdr_table_protect_gnu_relro(const Elf_Phdr* phdr_table,
                              int               phdr_count,
-                             uint8_t *load_bias)
+                             uint8_t *load_bias,
+                             size_t page_size)
 {
     return _phdr_table_set_gnu_relro_prot(phdr_table,
                                           phdr_count,
                                           load_bias,
-            /*PROT_READ*/0);
+            /*PROT_READ*/0, page_size);
 }
 
 

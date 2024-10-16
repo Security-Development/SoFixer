@@ -17,7 +17,7 @@ public:
     // try to fix it
     void FixDumpSoPhdr();
 
-    bool Load() override;
+    bool Load(size_t page_size) override;
     bool LoadDynamicSectionFromBaseSource();
 
     void setDumpSoBaseAddr(Elf_Addr base) { dump_so_base_ = base; }
@@ -27,7 +27,7 @@ public:
     }
 
 //    void GetDynamicSection(Elf_Dyn** dynamic, size_t* dynamic_count, Elf_Word* dynamic_flags) override;
-    bool haveDynamicSectionInLoadableSegment();
+    bool haveDynamicSectionInLoadableSegment(size_t page_size);
 
 private:
     void ApplyDynamicSection();

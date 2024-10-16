@@ -92,16 +92,16 @@ class ElfRebuilder {
 public:
     ElfRebuilder(ObElfReader* elf_reader);
     ~ElfRebuilder() { if(rebuild_data != nullptr) delete []rebuild_data; }
-    bool Rebuild();
+    bool Rebuild(size_t page_size);
 
     void* getRebuildData() { return rebuild_data; }
     size_t getRebuildSize() { return rebuild_size; }
 private:
-    bool RebuildPhdr();
-    bool RebuildShdr();
-    bool ReadSoInfo();
-    bool RebuildRelocs();
-    bool RebuildFin();
+    bool RebuildPhdr(size_t page_size);
+    bool RebuildShdr(size_t page_size);
+    bool ReadSoInfo(size_t page_size);
+    bool RebuildRelocs(size_t page_size);
+    bool RebuildFin(size_t page_size);
 
   template <bool isRela>
   void relocate(uint8_t * base, Elf_Rel* rel, Elf_Addr dump_base);
