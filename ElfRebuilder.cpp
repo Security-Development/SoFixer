@@ -357,37 +357,37 @@ bool ElfRebuilder::RebuildShdr(size_t page_size) {
     }
 
     // get .got
-   if(si.plt_got != nullptr) {
-       // global_offset_table
-       sGOT = shdrs.size();
-       auto sLast = sGOT - 1;
+//    if(si.plt_got != nullptr) {
+//        // global_offset_table
+//        sGOT = shdrs.size();
+//        auto sLast = sGOT - 1;
 
-       Elf_Shdr shdr;
-       shdr.sh_name = shstrtab.length();
-       shstrtab.append(".got");
-       shstrtab.push_back('\0');
+//        Elf_Shdr shdr;
+//        shdr.sh_name = shstrtab.length();
+//        shstrtab.append(".got");
+//        shstrtab.push_back('\0');
 
-       shdr.sh_type = SHT_PROGBITS;
-       shdr.sh_flags = SHF_ALLOC | SHF_WRITE;
-       shdr.sh_addr = shdrs[sLast].sh_addr + shdrs[sLast].sh_size;
-       // Align8??
-       while (shdr.sh_addr & 0x7) {
-           shdr.sh_addr ++;
-       }
+//        shdr.sh_type = SHT_PROGBITS;
+//        shdr.sh_flags = SHF_ALLOC | SHF_WRITE;
+//        shdr.sh_addr = shdrs[sLast].sh_addr + shdrs[sLast].sh_size;
+//        // Align8??
+//        while (shdr.sh_addr & 0x7) {
+//            shdr.sh_addr ++;
+//        }
 
-       shdr.sh_offset = shdr.sh_addr;
-       shdr.sh_size = (uintptr_t)(si.plt_got + si.plt_rel_count) - shdr.sh_addr - (uintptr_t)base + 3 * sizeof(Elf_Addr);
-       shdr.sh_link = 0;
-       shdr.sh_info = 0;
-#ifdef __SO64__
-       shdr.sh_addralign = 8;
-#else
-       shdr.sh_addralign = 4;
-#endif
-       shdr.sh_entsize = 0x0;
+//        shdr.sh_offset = shdr.sh_addr;
+//        shdr.sh_size = (uintptr_t)(si.plt_got + si.plt_rel_count) - shdr.sh_addr - (uintptr_t)base + 3 * sizeof(Elf_Addr);
+//        shdr.sh_link = 0;
+//        shdr.sh_info = 0;
+// #ifdef __SO64__
+//        shdr.sh_addralign = 8;
+// #else
+//        shdr.sh_addralign = 4;
+// #endif
+//        shdr.sh_entsize = 0x0;
 
-       shdrs.push_back(shdr);
-   }
+//        shdrs.push_back(shdr);
+//    }
 
     // gen .data
     if(true) {
@@ -413,26 +413,26 @@ bool ElfRebuilder::RebuildShdr(size_t page_size) {
     }
 
     // gen .bss
-   if(true) {
-       sBSS = shdrs.size();
+//    if(true) {
+//        sBSS = shdrs.size();
 
-       Elf_Shdr shdr;
-       shdr.sh_name = shstrtab.length();
-       shstrtab.append(".bss");
-       shstrtab.push_back('\0');
+//        Elf_Shdr shdr;
+//        shdr.sh_name = shstrtab.length();
+//        shstrtab.append(".bss");
+//        shstrtab.push_back('\0');
 
-       shdr.sh_type = SHT_NOBITS;
-       shdr.sh_flags = SHF_ALLOC | SHF_WRITE;
-       shdr.sh_addr = si.max_load;
-       shdr.sh_offset = shdr.sh_addr;
-       shdr.sh_size = 0;   // not used
-       shdr.sh_link = 0;
-       shdr.sh_info = 0;
-       shdr.sh_addralign = 8;
-       shdr.sh_entsize = 0x0;
+//        shdr.sh_type = SHT_NOBITS;
+//        shdr.sh_flags = SHF_ALLOC | SHF_WRITE;
+//        shdr.sh_addr = si.max_load;
+//        shdr.sh_offset = shdr.sh_addr;
+//        shdr.sh_size = 0;   // not used
+//        shdr.sh_link = 0;
+//        shdr.sh_info = 0;
+//        shdr.sh_addralign = 8;
+//        shdr.sh_entsize = 0x0;
 
-       shdrs.push_back(shdr);
-   }
+//        shdrs.push_back(shdr);
+//    }
 
     // gen .shstrtab, pad into last data
     if(true) {
